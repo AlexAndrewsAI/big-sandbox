@@ -94,5 +94,10 @@ sleep 1
 # - -shared: allow multiple simultaneous VNC clients.
 x11vnc -display :1 -auth "$XAUTHORITY_FILE" -rfbauth "$PASSWORD_FILE" \
        -forever -shared -nopw -noshm -rfbport 5901 &
+CHILD_PIDS+=($!)
 
 echo "VNC server started on display :1 (port 5901)"
+
+# Block until all backgrounded desktop processes exit, then clean them up.
+# The EXIT trap fires on normal exit, SIGTERM, or any child dying.
+wait
