@@ -42,6 +42,9 @@ apt:
   # Logging
   - rsyslog         # System logging daemon (captures container syslog)
 
+  # Networking utilities (nc is used by the Docker HEALTHCHECK)
+  - netcat-openbsd
+
 
 # --- custom install steps -----------------------------------------------------
 # Each key is a human-readable label; the value is a shell command that is

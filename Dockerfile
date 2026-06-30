@@ -61,6 +61,11 @@ RUN installer.sh /tmp/config.yml
 # --- Runtime ------------------------------------------------------------------
 EXPOSE 5901
 
+# HEALTHCHECK: verify x11vnc is listening on the expected port.
+# Docker will report "unhealthy" if the VNC server crashes or fails to start.
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD nc -z localhost 5901 || exit 1
+
 # On container start:
 #   1. Fix /persist ownership (may have been created by root on the host).
 #   2. Start rsyslog so container logs are captured.
