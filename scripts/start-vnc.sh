@@ -1,6 +1,9 @@
 #!/bin/bash
 # start-vnc.sh — Launch a full VNC desktop session inside the sandbox container.
 #
+# Cleanup: all backgrounded desktop processes are tracked and killed on EXIT
+# so they don't leak if the script exits early or the container stops.
+#
 # What it does, in order:
 #   1. Ensures a VNC password exists (prompts on first run).
 #   2. Creates a shared X authority file so both root and sandbox can
@@ -47,10 +50,18 @@ COOKIE=$(mcookie)
 sudo xauth -f "$XAUTHORITY_FILE" add :1 MIT-MAGIC-COOKIE-1 "$COOKIE"
 sudo chmod 644 "$XAUTHORITY_FILE"
 
+# --- Process cleanup -------------------------------------------------------
+# Track every backgrounded process so an EXIT trap can kill them all.
+# This prevents orphaned Xvfb/xfce4-session/x11vnc if the script exits
+# early (e.g. error signal) or the Docker container stops.
+CHILD_PIDS=()
+trap 'for pid in "${CHILD_PIDS[@]}"; do kill "$pid" 2>/dev/null; done; wait' EXIT
+
 # --- Virtual framebuffer (Xvfb) ---------------------------------------------
 # Needs root to create the /tmp/.X11-unix socket.  Resolution is 1280x720
 # at 24-bit colour depth — enough for a usable desktop without wasting RAM.
 sudo Xvfb :1 -screen 0 1280x720x24 -auth "$XAUTHORITY_FILE" &
+CHILD_PIDS+=($!)
 sleep 1
 
 # --- User environment --------------------------------------------------------
@@ -72,6 +83,7 @@ sleep 1
 
 # --- XFCE desktop -----------------------------------------------------------
 xfce4-session &
+CHILD_PIDS+=($!)
 sleep 1
 
 # --- VNC server (x11vnc) ----------------------------------------------------
