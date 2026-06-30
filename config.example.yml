@@ -1,0 +1,36 @@
+# Packages to install via apt-get (run as root during build)
+apt:
+  - xvfb
+  - x11vnc
+  - xauth
+  - util-linux
+  - chromium
+  - firefox-esr
+  - xfce4
+  - xfce4-goodies
+  - dbus-x11
+  - xterm
+  - vim
+  - nano
+  - kate
+  - python3
+  - python3-pip
+  - python3-numpy
+  - syncthing
+  - gocryptfs
+  - fuse3
+  - rsyslog
+
+# TODO: gocryptfs, cryptomator, borg backup
+
+# Install list - each key maps to its shell command string executed by installer.sh
+# Tools under this list are installed as the sandbox user during build.
+install:
+  cryptomator: 'wget https://github.com/cryptomator/cryptomator/releases/download/1.19.3/cryptomator-1.19.3-x86_64.AppImage && chown sandbox:sandbox *.AppImage && chmod a+rx *.AppImage && mv *.AppImage /home/sandbox/.local/bin'
+
+# Sync persist from another sandbox location
+# location: ../simple-agent-sandbox
+# exclude:
+#   - .venv
+#   - "*.pyc"
+#   - .cache

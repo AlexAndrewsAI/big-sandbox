@@ -1,0 +1,12 @@
+# Don't commit persist except for specific files
+/persist/*
+/persist/bashrc-extra
+
+# Don't commit actual config, use config.example.yml as template
+/config.yml
+
+# Don't commit actual compose file, use docker-compose.example.yml as template
+/docker-compose.yml
+
+temp.*
+*.temp
