@@ -36,28 +36,19 @@ fi
 # If config.yml declares a "location", rsync that sandbox's persist/ into
 # ours so we start with the same dotfiles, tools, and cached data.  The
 # optional "exclude" list lets us skip large or irrelevant subtrees.
-if [ -f config.yml ] && yq '.location' config.yml &>/dev/null; then
-  location=$(yq '.location' config.yml)
-  # Strip surrounding quotes (yq may return them).
-  location="${location#\"}"
-  location="${location%\"}"
-  location="${location#\'}"
-  location="${location%\'}"
+if [ -f config.yml ] && yq -r '.location' config.yml &>/dev/null; then
+  location=$(yq -r '.location' config.yml)
 
   if [ "$location" != "null" ] && [ -n "$location" ]; then
     echo "Syncing persist from $location..."
 
     exclude_args=()
-    if yq '.exclude' config.yml &>/dev/null; then
+    if yq -r '.exclude' config.yml &>/dev/null; then
       while IFS= read -r pattern; do
-        pattern="${pattern#\"}"
-        pattern="${pattern%\"}"
-        pattern="${pattern#\'}"
-        pattern="${pattern%\'}"
         if [ "$pattern" != "null" ] && [ -n "$pattern" ]; then
           exclude_args+=(--exclude "$pattern")
         fi
-      done < <(yq '.exclude[]' config.yml)
+      done < <(yq -r '.exclude[]' config.yml)
     fi
 
     if [ -d "$location/persist" ]; then
