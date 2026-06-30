@@ -51,6 +51,7 @@ apt:
 # Add your own tools here — e.g. AppImages, pip packages, npm globals —
 # and they will be available inside the sandbox after the next build.
 install:
+  # Encrypted filesystem
   cryptomator: 'wget https://github.com/cryptomator/cryptomator/releases/download/1.19.3/cryptomator-1.19.3-x86_64.AppImage && chown sandbox:sandbox *.AppImage && chmod a+rx *.AppImage && mv *.AppImage /home/sandbox/.local/bin'
 
 

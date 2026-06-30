@@ -1,4 +1,4 @@
-# Example compose configuration — copy to docker-compose.yml and customise.
+co# Example compose configuration — copy to docker-compose.yml and customise.
 services:
   sandbox:
     # Image to build / pull.  Override with a local tag during development.
