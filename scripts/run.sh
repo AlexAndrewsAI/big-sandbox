@@ -11,7 +11,7 @@
 # Automatically selects "docker compose" (v2 plugin) or falls back to the
 # legacy "docker-compose" binary.
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit
 
 # --- Pick a Docker Compose command -------------------------------------------
 if command -v docker &>/dev/null && docker compose version &>/dev/null; then

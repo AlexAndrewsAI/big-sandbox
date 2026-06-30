@@ -12,7 +12,7 @@
 #   ./build.sh [--build-arg KEY=VAL]...
 
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit
 
 # --- Prerequisite: docker-compose.yml ----------------------------------------
 if [ ! -f docker-compose.yml ]; then
