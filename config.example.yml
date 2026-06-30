@@ -42,9 +42,6 @@ apt:
   # Logging
   - rsyslog         # System logging daemon (captures container syslog)
 
-  # YAML processing (used by Dockerfile to parse config.yml at build time)
-  - yq
-
   # Networking utilities (nc is used by the Docker HEALTHCHECK)
   - netcat-openbsd
 
