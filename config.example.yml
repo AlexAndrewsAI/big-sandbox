@@ -1,34 +1,64 @@
-# Packages to install via apt-get (run as root during build)
+# =============================================================================
+# big-sandbox configuration
+# =============================================================================
+# Copy this file to config.yml (which is gitignored) and edit to suit.
+# config.yml is consumed by both build.sh (host) and installer.sh (container).
+
+
+# --- apt packages -------------------------------------------------------------
+# Installed via "apt-get install -y" as root during "docker build".
+# Keep this list minimal — prefer pip/npm/AppImage for user-space tools.
 apt:
-  - xvfb
-  - x11vnc
-  - xauth
-  - util-linux
+  # X11 / VNC desktop stack
+  - xvfb            # Virtual framebuffer — provides a headless X display
+  - x11vnc          # VNC server that shares the X display
+  - xauth           # X authority file management (shared cookie)
+  - util-linux      # Provides mcookie (generates random X auth cookies)
+  - xfce4           # Lightweight desktop environment
+  - xfce4-goodies   # Extra XFCE plugins (terminal, mixer, etc.)
+  - dbus-x11        # D-Bus session bus integration with X11
+
+  # Browsers
   - chromium
   - firefox-esr
-  - xfce4
-  - xfce4-goodies
-  - dbus-x11
+
+  # Editors
   - xterm
   - vim
   - nano
   - kate
+
+  # Python
   - python3
   - python3-pip
   - python3-numpy
-  - syncthing
-  - gocryptfs
-  - fuse3
-  - rsyslog
 
-# TODO: gocryptfs, cryptomator, borg backup
+  # File sync & backup
+  - syncthing       # Continuous file synchronisation
+  - gocryptfs       # Encrypted overlay filesystem
+  - borgbackup      # Deduplicating backup program
+  - fuse3           # Required for gocryptfs and other FUSE filesystems
 
-# Install list - each key maps to its shell command string executed by installer.sh
-# Tools under this list are installed as the sandbox user during build.
+  # Logging
+  - rsyslog         # System logging daemon (captures container syslog)
+
+
+# --- custom install steps -----------------------------------------------------
+# Each key is a human-readable label; the value is a shell command that is
+# eval'd by installer.sh as the sandbox user.  Steps run in alphabetical
+# order and the build fails fast on the first non-zero exit.
+#
+# Add your own tools here — e.g. AppImages, pip packages, npm globals —
+# and they will be available inside the sandbox after the next build.
 install:
   cryptomator: 'wget https://github.com/cryptomator/cryptomator/releases/download/1.19.3/cryptomator-1.19.3-x86_64.AppImage && chown sandbox:sandbox *.AppImage && chmod a+rx *.AppImage && mv *.AppImage /home/sandbox/.local/bin'
 
-# Sync persist from another sandbox location
+
+# --- optional persist sync ----------------------------------------------------
+# rsync another sandbox's persist/ into ours before building, so we start
+# with the same dotfiles, SSH keys, and cached data.  Uncomment and point
+# "location" at the sibling repo.  "exclude" patterns are optional.
+#
 # location: ../simple-agent-sandbox
 # exclude:
 #   - .venv

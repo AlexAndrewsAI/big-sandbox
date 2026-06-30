@@ -1,17 +1,29 @@
 #!/bin/bash
-# installer.sh - Read config.yml and run each command under the install: section
-# Called during Docker build as the sandbox user.
-# Exits immediately on first failure (fail-fast) so the user can intervene.
+# installer.sh — Execute the custom "install" steps from config.yml.
+#
+# Called during "docker build" as the sandbox user so that downloaded tools
+# (AppImages, pip packages, npm globals, etc.) land in /home/sandbox and
+# don't require root to write.
+#
+# Each top-level key under "install:" in config.yml becomes one step.
+# The key name is a human-readable label; the value is a shell command that
+# is eval'd.  Steps run sequentially and the build fails fast on the first
+# error so the user can fix the offending command and rebuild.
+#
+# Usage:
+#   installer.sh [config-path]   # default: /tmp/config.yml
+
 set -euo pipefail
 
 CONFIG="${1:-/tmp/config.yml}"
 
+# --- Config file presence -----------------------------------------------------
 if [ ! -f "$CONFIG" ]; then
   echo "installer.sh: config.yml not found at $CONFIG — skipping install section" >&2
   exit 0
 fi
 
-# Check if the install section exists at all
+# --- Does the install section exist and is it non-empty? ----------------------
 if ! YQ_CHECK=$(yq -r '.install' "$CONFIG" 2>/dev/null) || [ "$YQ_CHECK" = "null" ] || [ -z "$YQ_CHECK" ]; then
   echo "installer.sh: no 'install' section found in $CONFIG — nothing to do"
   exit 0
@@ -23,6 +35,7 @@ if [ -z "$KEYS" ]; then
   exit 0
 fi
 
+# --- Run each install step ----------------------------------------------------
 echo "installer.sh: Processing install section from $CONFIG"
 
 while IFS= read -r key; do

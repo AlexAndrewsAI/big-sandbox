@@ -1,11 +1,26 @@
 #!/bin/bash
-# start-vnc.sh - Start x11vnc server on display :1
-# Designed to run as the sandbox user with NOPASSWD sudo for root operations.
-# Prompts for a password if none is set up yet.
+# start-vnc.sh — Launch a full VNC desktop session inside the sandbox container.
+#
+# What it does, in order:
+#   1. Ensures a VNC password exists (prompts on first run).
+#   2. Creates a shared X authority file so both root and sandbox can
+#      authenticate against the same display.
+#   3. Starts Xvfb (virtual framebuffer) on display :1 as root.
+#   4. Launches a D-Bus session + XFCE desktop as the sandbox user.
+#   5. Starts x11vnc to expose the desktop on port 5901.
+#
+# Requirements:
+#   - Must be run as the "sandbox" user with NOPASSWD sudo.
+#   - Xvfb, x11vnc, xauth, and xfce4 must be installed.
+#
+# Environment variables set here propagate to the XFCE session and any
+# child processes (e.g. terminals, browsers) the agent launches.
 
 PASSWORD_FILE="/persist/.vnc/passwd"
 
-# Ensure .vnc directory exists (owned by sandbox)
+# --- VNC password setup -----------------------------------------------------
+# On first run there is no password file, so prompt the user to create one.
+# Subsequent runs reuse the stored password silently.
 mkdir -p /persist/.vnc
 
 if [ ! -f "$PASSWORD_FILE" ]; then
@@ -14,45 +29,58 @@ if [ ! -f "$PASSWORD_FILE" ]; then
   echo "Password saved to $PASSWORD_FILE"
 fi
 
+# --- Shared X authority ------------------------------------------------------
+# Xvfb runs as root and x11vnc runs as sandbox, so they need a shared
+# X authority file.  We create one, add a fresh magic cookie, and make
+# it world-readable so both users can authenticate.
 XAUTHORITY_FILE="/tmp/.Xauthority-shared"
 
-# Clean up stale X authority from a previous run
+# Remove any stale authority file from a previous container run.
 sudo rm -f "$XAUTHORITY_FILE"
 
-# Set DISPLAY environment variable
 export DISPLAY=:1
-
-# Set locale to UTF-8
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
-
-# Create a shared X authority file as root so Xvfb can use it
-# (sandbox can connect to it since we make it world-readable)
 export XAUTHORITY="$XAUTHORITY_FILE"
+
 COOKIE=$(mcookie)
 sudo xauth -f "$XAUTHORITY_FILE" add :1 MIT-MAGIC-COOKIE-1 "$COOKIE"
 sudo chmod 644 "$XAUTHORITY_FILE"
 
-# Start Xvfb on display :1 (needs root to create /tmp/.X11-unix)
+# --- Virtual framebuffer (Xvfb) ---------------------------------------------
+# Needs root to create the /tmp/.X11-unix socket.  Resolution is 1280x720
+# at 24-bit colour depth — enough for a usable desktop without wasting RAM.
 sudo Xvfb :1 -screen 0 1280x720x24 -auth "$XAUTHORITY_FILE" &
 sleep 1
 
-# Start D-Bus + XFCE session as sandbox (we're already sandbox)
+# --- User environment --------------------------------------------------------
+# These variables ensure GUI apps write their config/cache/data under
+# /persist so they survive container restarts.
 export PATH=/home/sandbox/.local/bin:/persist/.local/bin:/usr/local/bin:/usr/bin:/bin:/home/sandbox/node_modules/cline/bin
 export HOME=/persist
 export XDG_CONFIG_HOME=/persist/.config
 export XDG_DATA_HOME=/persist/.local/share
 export XDG_CACHE_HOME=/persist/.cache
 
+# --- D-Bus session bus ------------------------------------------------------
+# Required by many XFCE components (volume, power, notifications, etc.).
 eval "$(dbus-launch --sh-syntax)"
 if command -v dbus-update-activation-environment &> /dev/null; then
   dbus-update-activation-environment --systemd DISPLAY 2>/dev/null || true
 fi
 sleep 1
+
+# --- XFCE desktop -----------------------------------------------------------
 xfce4-session &
 sleep 1
 
-# Start x11vnc as sandbox with shared auth
-x11vnc -display :1 -auth "$XAUTHORITY_FILE" -rfbauth "$PASSWORD_FILE" -forever -shared -nopw -noshm -rfbport 5901 &
+# --- VNC server (x11vnc) ----------------------------------------------------
+# - -noshm: disable MIT-SHM shared memory extension (not available in
+#   containers, causes "BadAccess" errors if left enabled).
+# - -nopw: we use -rfbauth instead; this suppresses the "you have no
+#   password" warning.
+# - -shared: allow multiple simultaneous VNC clients.
+x11vnc -display :1 -auth "$XAUTHORITY_FILE" -rfbauth "$PASSWORD_FILE" \
+       -forever -shared -nopw -noshm -rfbport 5901 &
 
 echo "VNC server started on display :1 (port 5901)"

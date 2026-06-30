@@ -1,20 +1,30 @@
+# big-sandbox Dockerfile
+# =====================
+# Extends simple-agent-sandbox with a full VNC-accessible XFCE desktop,
+# browsers, editors, and user-configurable tools from config.yml.
+#
+# Build:  ./build.sh
+# Run:    ./run.sh
+# Connect: vnc://localhost:5901
+
 FROM alexandrewsai/simple-agent-sandbox:latest
 
-# Install apt packages from config.yml (must be root)
+# --- Sudo setup (root) --------------------------------------------------------
+# The sandbox user needs password-less sudo so start-vnc.sh can launch Xvfb
+# (which requires root to create /tmp/.X11-unix) and fix /persist ownership.
 USER root
 
-# Install sudo and grant sandbox password-less sudo access
 RUN apt-get update && \
       apt-get install -y --no-install-recommends sudo && \
       rm -rf /var/lib/apt/lists/* && \
       echo "sandbox ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/sandbox && \
       chmod 0440 /etc/sudoers.d/sandbox
 
+# --- Copy config into the image -----------------------------------------------
 COPY config.yml /tmp/config.yml
+RUN chmod a+r /tmp/config.yml   # installer.sh runs as sandbox, needs read access
 
-# Make config readable by sandbox user (used by installer.sh)
-RUN chmod a+r /tmp/config.yml
-
+# --- Install apt packages from config.yml (root) ------------------------------
 RUN if [ -f /tmp/config.yml ] && yq '.apt' /tmp/config.yml &>/dev/null; then \
       apt-get update && \
       PACKAGES=$(yq '.apt[]' /tmp/config.yml | tr '\n' ' ') && \
@@ -22,16 +32,19 @@ RUN if [ -f /tmp/config.yml ] && yq '.apt' /tmp/config.yml &>/dev/null; then \
       rm -rf /var/lib/apt/lists/*; \
     fi
 
-# Suppress rsyslog imklog warning (kernel log not available in containers)
+# --- Silence rsyslog imklog warning ------------------------------------------
+# Containers have no /proc/kmsg, so imklog would spam "kernel log not found".
+# Loading the immark module replaces it with periodic mark messages instead.
 RUN mkdir -p /etc/rsyslog.d && \
     echo 'module(load="immark")' > /etc/rsyslog.d/00-numeric.conf && \
     echo '$ModLoad immark' >> /etc/rsyslog.d/00-numeric.conf
 
-# Return to non-root user (matching upstream)
+# --- Switch to sandbox user ---------------------------------------------------
 USER sandbox
 ENV HOME=/home/sandbox
 WORKDIR /home/sandbox
 
+# --- Install helper scripts ---------------------------------------------------
 COPY scripts/start-vnc.sh /usr/local/bin/start-vnc.sh
 COPY scripts/installer.sh /usr/local/bin/installer.sh
 
@@ -39,12 +52,18 @@ USER root
 RUN chmod a+rx /usr/local/bin/*
 RUN chown -R sandbox:sandbox /usr/local/bin
 
-# Run installer.sh (processes install: section in config.yml) as sandbox user
-# so that tools (npm install -g, pip, curl-based installers) write to
-# /home/sandbox instead of requiring root.
+# --- Run custom install steps from config.yml (sandbox user) ------------------
+# Running as sandbox ensures downloaded tools (AppImages, pip, npm globals)
+# write to /home/sandbox without needing root.
 USER sandbox
 RUN installer.sh /tmp/config.yml
 
+# --- Runtime ------------------------------------------------------------------
 EXPOSE 5901
 
+# On container start:
+#   1. Fix /persist ownership (may have been created by root on the host).
+#   2. Start rsyslog so container logs are captured.
+#   3. Launch the VNC desktop (Xvfb + XFCE + x11vnc).
+#   4. Drop into an interactive bash shell.
 CMD ["bash", "-c", "sudo chown -R sandbox:sandbox /persist && sudo rsyslogd && start-vnc.sh && exec bash -i"]
