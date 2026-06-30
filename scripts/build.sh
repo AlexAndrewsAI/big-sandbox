@@ -65,4 +65,4 @@ if [ -f config.yml ] && yq -r '.location' config.yml &>/dev/null; then
 fi
 
 # --- Build --------------------------------------------------------------------
-docker compose build --progress=plain "$@"
+docker compose --progress=plain build "$@"
