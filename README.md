@@ -2,6 +2,8 @@
 
 A Docker-based sandbox environment for running AI agents. Extends [simple-agent-sandbox](https://github.com/AlexAndrewsAI/simple-agent-sandbox) with additional mounts and configuration.
 
+This repository is designed to be used in conjunction with the other repositories at https://github.com/AlexAndrewsAI?tab=repositories.
+
 ## Quick Start
 1. **Copy Configs:** Copy the example files and edit to taste:
    ```bash
