@@ -21,7 +21,7 @@ RUN apt-get update && \
       chmod 0440 /etc/sudoers.d/sandbox
 
 # Install yq
-RUN apt-get update && apt-install yq
+RUN apt-get update && apt-get install -y --no-install-recommends yq
 
 # --- Copy config into the image -----------------------------------------------
 COPY config.yml /tmp/config.yml
