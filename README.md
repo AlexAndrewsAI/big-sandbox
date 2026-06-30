@@ -82,11 +82,11 @@ scripts/run.sh --desktop -d                      # Detached desktop (attach late
 
 ## Desktop Access (VNC)
 
-The container can run a lightweight desktop environment with **Xvfb** (virtual framebuffer), **Fluxbox** (window manager), and **x11vnc** (VNC server) for displaying browser windows or GUIs from AI agents.
+The container can run a lightweight desktop environment with **Xvfb** (virtual framebuffer), **XFCE** (desktop environment), and **x11vnc** (VNC server) for displaying browser windows or GUIs from AI agents.
 
 ### Prerequisites
 
-Xvfb, x11vnc, chromium, and fluxbox install automatically from the `apt:` list in `config.yml` during `docker compose build`.
+Xvfb, x11vnc, chromium, and XFCE install automatically from the `apt:` list in `config.yml` during `docker compose build`.
 
 **On the host**, install a VNC client such as:
 
@@ -136,7 +136,7 @@ scripts/run.sh --desktop -d
 |-------|----------|
 | `Connection refused` on port 5901 | Make sure you used `scripts/run.sh --desktop` (adds `--service-ports`). VNC also needs ~3s to initialize. Check `docker compose logs sandbox`. |
 | Prompted for VNC password every time | Run `x11vnc -storepasswd /persist/.vnc/passwd` inside the container to save a persistent password. |
-| Blank screen / no window manager | Fluxbox starts automatically. If the screen is empty, launch an app manually: `DISPLAY=:1 chromium-browser &` from the container shell. |
+| Blank screen / no desktop | XFCE starts automatically. If the screen is empty, launch an app manually: `DISPLAY=:1 chromium &` from the container shell. |
 
 ## Environment Variables
 
