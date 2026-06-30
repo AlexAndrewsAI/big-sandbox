@@ -75,9 +75,10 @@ big-sandbox/
 cp config.example.yml config.yml                # Create real config from template
 cp docker-compose.example.yml docker-compose.yml # Create real compose from template
 scripts/build.sh                                 # Build (or: docker compose build)
-scripts/run.sh                                   # Quick interactive shell (no desktop)
-scripts/run.sh --desktop                         # Interactive shell + VNC desktop
-scripts/run.sh --desktop -d                      # Detached desktop (attach later with 'exec bash')
+scripts/run.sh                                   # Interactive shell + VNC desktop (ports published)
+scripts/run.sh --build                           # Rebuild image, then run
+docker compose exec sandbox bash                 # Attach a second shell to a running container
+docker compose down                              # Stop the container
 ```
 
 ## Desktop Access (VNC)
@@ -99,7 +100,7 @@ Xvfb, x11vnc, chromium, and XFCE install automatically from the `apt:` list in `
 The first time VNC starts, it will prompt you to set a password:
 
 ```bash
-scripts/run.sh --desktop
+scripts/run.sh
 # When you see: "No VNC password found. Please set one now:"
 # Type your VNC password and confirm.
 ```
@@ -108,33 +109,22 @@ The password is stored in `./persist/.vnc/passwd` and persists across restarts.
 
 ### Connect to the Desktop
 
-Port `5901` is exposed in `docker-compose.yml`. Use the helper script:
-
-**Interactive shell with desktop**
+Port `5901` is exposed in `docker-compose.yml`. Start the container:
 
 ```bash
-scripts/run.sh --desktop
+scripts/run.sh
 # Wait ~3 seconds for VNC to initialize
 # Connect to localhost:5901 with your VNC client
 ```
 
-**Detached (desktop only)**
-
-```bash
-scripts/run.sh --desktop -d
-# Connect to localhost:5901 with your VNC client
-# To attach a shell later:  docker compose exec sandbox bash
-# To stop:                  docker compose down
-```
-
 > **Why `--service-ports`?** `docker compose run` does not publish ports by default.
-> The `--desktop` flag adds `--service-ports` so port 5901 is reachable from your host.
+> `run.sh` adds `--service-ports` so port 5901 is reachable from your host.
 
 ### Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| `Connection refused` on port 5901 | Make sure you used `scripts/run.sh --desktop` (adds `--service-ports`). VNC also needs ~3s to initialize. Check `docker compose logs sandbox`. |
+| `Connection refused` on port 5901 | Make sure you used `scripts/run.sh` (which adds `--service-ports`). VNC also needs ~3s to initialize. Check `docker compose logs sandbox`. |
 | Prompted for VNC password every time | Run `x11vnc -storepasswd /persist/.vnc/passwd` inside the container to save a persistent password. |
 | Blank screen / no desktop | XFCE starts automatically. If the screen is empty, launch an app manually: `DISPLAY=:1 chromium &` from the container shell. |
 
