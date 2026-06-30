@@ -20,6 +20,9 @@ RUN apt-get update && \
       echo "sandbox ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/sandbox && \
       chmod 0440 /etc/sudoers.d/sandbox
 
+# Install yq
+RUN apt-get update && apt-install yq
+
 # --- Copy config into the image -----------------------------------------------
 COPY config.yml /tmp/config.yml
 RUN chmod a+r /tmp/config.yml   # installer.sh runs as sandbox, needs read access
