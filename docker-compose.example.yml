@@ -1,0 +1,40 @@
+# Example compose configuration — copy to docker-compose.yml and customise.
+services:
+  sandbox:
+    # Image to build / pull.  Override with a local tag during development.
+    image: alexandrewsai/big-sandbox:latest
+    build:
+      context: .
+
+    environment:
+      - DISPLAY=:1                    # X display used by XFCE + VNC
+      - HOME=/persist                 # GUI apps read/write under /persist
+      - PATH=/home/sandbox/.local/bin:/persist/.local/bin:/usr/local/bin:/usr/bin:/bin:/home/sandbox/node_modules/cline/bin
+
+    ports:
+      # VNC desktop access (connect any VNC client to localhost:5901)
+      - "5901:5901"
+      # SSH server for secure tunneling and remote access
+      - "2222:22"
+
+    volumes:
+      # ┌─────────────────────────────────────────────────────────┐
+      # │  ADD YOUR MOUNTS HERE                                   │
+      # │  Adjust to include other folders in the                 │
+      # │  sandbox, e.g.:                                         │
+      # │    - ./workspace:/workspace                             │
+      # │    - ~/data:/data                                       │
+      # └─────────────────────────────────────────────────────────┘
+      - ./persist:/persist
+    devices:
+      # Required for gocryptfs and other FUSE filesystems.
+      - /dev/fuse
+
+    cap_add:
+      # SYS_ADMIN is needed to mount FUSE filesystems inside the container.
+      - SYS_ADMIN
+
+    # Allocate a TTY and keep stdin open so the container stays running and
+    # accepts interactive input (e.g. from "docker compose run").
+    tty: true
+    stdin_open: true

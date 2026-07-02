@@ -1,0 +1,18 @@
+# Version control
+.git
+.gitignore
+
+# Persistent state (mounted at runtime, never belong in the image)
+persist/
+
+# OS / editor junk
+.DS_Store
+*.swp
+*~
+.vscode
+.idea
+
+# Docs and review notes (not needed in build context)
+README.md
+temp.md
+LICENSE
