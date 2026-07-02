@@ -103,11 +103,19 @@ if [ -f config.yml ] && yq -r '.location' config.yml &>/dev/null; then
         rsync -av "${exclude_args[@]}" "$location/persist/" persist/
         echo "Sync complete."
       else
-        echo "WARNING: rsync not installed" >&2
-        echo "Skipping persist sync from $location" >&2
+        echo "ERROR: rsync not installed" >&2
+        echo "persist sync is configured in config.yml but rsync is not available." >&2
+        echo "Install rsync to enable persist sync, or remove the 'location' field from config.yml." >&2
+        echo "  Ubuntu/Debian: sudo apt install rsync" >&2
+        echo "  macOS: rsync is pre-installed" >&2
+        echo "  Fedora/RHEL: sudo dnf install rsync" >&2
+        exit 1
       fi
     else
-      echo "WARNING: Source directory $location/persist/ does not exist" >&2
+      echo "ERROR: Source directory $location/persist/ does not exist" >&2
+      echo "persist sync is configured but the source directory was not found." >&2
+      echo "Check the 'location' field in config.yml and ensure the path is correct." >&2
+      exit 1
     fi
   fi
 fi

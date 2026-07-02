@@ -29,7 +29,7 @@ jobs:
 
       - name: Install yq
         run: |
-          sudo curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o /usr/local/bin/yq
+          sudo curl -fsSL "https://github.com/mikefarah/yq/releases/download/v4.53.3/yq_linux_amd64" -o /usr/local/bin/yq
           sudo chmod +x /usr/local/bin/yq
 
       - name: Lint config.example.yml
@@ -69,7 +69,7 @@ jobs:
 
       - name: Install yq
         run: |
-          sudo curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o /usr/local/bin/yq
+          sudo curl -fsSL "https://github.com/mikefarah/yq/releases/download/v4.53.3/yq_linux_amd64" -o /usr/local/bin/yq
           sudo chmod +x /usr/local/bin/yq
 
       - name: Syntax check all scripts

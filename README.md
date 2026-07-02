@@ -68,8 +68,42 @@ big-sandbox/
 
 - [Docker](https://docs.docker.com/get-docker/)
 - [Docker Compose](https://docs.docker.com/compose/install/)
-- [rsync](https://rsync.samba.org/) (used by build.sh to sync persist from another sandbox)
 - [yq](https://github.com/mikefarah/yq) (used by build.sh to read config.yml)
+- [rsync](https://rsync.samba.org/) (optional - only needed if using persist sync feature in config.yml)
+
+## Security Considerations
+
+This sandbox environment uses permissive security settings for convenience in development and testing:
+
+- **Passwordless sudo:** The `sandbox` user has `NOPASSWD` sudo access (`sandbox ALL=(ALL) NOPASSWD:ALL`) to enable Xvfb startup and filesystem operations without interactive prompts
+- **SSH password authentication:** SSH server is configured with password authentication enabled (default password: `sandbox`)
+- **Root SSH login:** `PermitRootLogin yes` is set in SSH config for debugging convenience
+- **Default credentials:** Both SSH and VNC use the default password `sandbox` unless changed
+
+These settings are intentional for a local development sandbox but **should not be used in production environments** without modification. For production use:
+
+1. Change default passwords using `passwd` inside the container
+2. Disable password authentication and use SSH keys only
+3. Remove `PermitRootLogin yes` from SSH config
+4. Restrict sudo access to specific commands only
+5. Use proper SSH host key verification (remove `-o StrictHostKeyChecking=no`)
+6. Run the container in an isolated network environment
+7. Consider using Docker secrets or environment variables for sensitive data
+
+## External Dependencies
+
+The Dockerfile depends on external resources that may change or become unavailable:
+
+- **useful-shell-scripts repository:** Cloned from `https://github.com/AlexAndrewsAI/useful-shell-scripts.git` during build
+- **AppImage downloads:** Downloads tools from GitHub releases (e.g., Cryptomator)
+- **Base image:** Pulls `alexandrewsai/simple-agent-sandbox:latest` from Docker Hub
+
+If these external resources change or become unavailable, builds may fail. Consider:
+
+1. Pinning specific commit hashes for git clones
+2. Using specific release versions for AppImage downloads
+3. Pinning base image tags instead of `latest`
+4. Mirroring critical dependencies internally for production builds
 
 ## Workflow Commands
 
