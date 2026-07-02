@@ -19,12 +19,16 @@ CONFIG="${1:-/tmp/config.yml}"
 
 # --- Config file presence -----------------------------------------------------
 if [ ! -f "$CONFIG" ]; then
-  echo "installer.sh: config.yml not found at $CONFIG — skipping install section" >&2
+  echo "installer.sh: config.yml not found at $CONFIG" >&2
+  echo "  — skipping install section" >&2
   exit 0
 fi
 
 # --- Does the install section exist and is it non-empty? ----------------------
-if ! YQ_CHECK=$(yq -r '.install' "$CONFIG" 2>/dev/null) || [ "$YQ_CHECK" = "null" ] || [ -z "$YQ_CHECK" ]; then
+if ! YQ_CHECK=$(yq -r '.install' "$CONFIG" 2>/dev/null); then
+  YQ_CHECK="null"
+fi
+if [ "$YQ_CHECK" = "null" ] || [ -z "$YQ_CHECK" ]; then
   echo "installer.sh: no 'install' section found in $CONFIG — nothing to do"
   exit 0
 fi

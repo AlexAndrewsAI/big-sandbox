@@ -2,25 +2,69 @@
 # build.sh — Build the big-sandbox Docker image.
 #
 # Steps:
-#   1. Verify docker-compose.yml exists (points user at the example if not).
+#   1. Verify config.yml and docker-compose.yml exist
+#      (offers to copy from examples if not).
 #   2. Fetch the upstream .bashrc if we don't already have one.
 #   3. Optionally sync a "persist/" directory from another sandbox location
 #      (configured via config.yml → location / exclude).
 #   4. Run "docker compose build" with plain progress output.
+#   5. Optionally push to Docker Hub.
 #
 # Usage:
-#   ./build.sh [--build-arg KEY=VAL]...
+#   ./build.sh [-n|--no-cache] [-p|--push]
 
 set -euo pipefail
 cd "$(dirname "$0")/.." || exit
 
-# --- Prerequisite: docker-compose.yml ----------------------------------------
-if [ ! -f docker-compose.yml ]; then
-  echo "docker-compose.yml not found. Create it from the example:"
+# Parse arguments
+no_cache=false
+push=false
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -n|--no-cache)
+      no_cache=true
+      shift
+      ;;
+    -p|--push)
+      push=true
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Usage: $0 [-n|--no-cache] [-p|--push]"
+      exit 1
+      ;;
+  esac
+done
+
+# --- Prerequisite: config files ----------------------------------------------
+missing_files=()
+[ ! -f config.yml ] && missing_files+=("config.yml")
+[ ! -f docker-compose.yml ] && missing_files+=("docker-compose.yml")
+
+if [ ${#missing_files[@]} -gt 0 ]; then
+  echo "The following config files are missing:"
+  for file in "${missing_files[@]}"; do
+    echo "  - $file"
+  done
   echo ""
-  echo "  cp docker-compose.example.yml docker-compose.yml"
-  echo ""
-  exit 1
+  read -p "Copy from example files? [y/N] " -n 1 -r
+  echo
+  if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+    for file in "${missing_files[@]}"; do
+      example="${file%.yml}.example.yml"
+      if [ -f "$example" ]; then
+        cp "$example" "$file"
+        echo "Copied $example to $file"
+      else
+        echo "ERROR: $example not found" >&2
+        exit 1
+      fi
+    done
+  else
+    exit 1
+  fi
 fi
 
 # --- Seed .bashrc from upstream ----------------------------------------------
@@ -29,7 +73,10 @@ fi
 mkdir -p persist
 if [ ! -f persist/.bashrc ]; then
   echo "persist/.bashrc not found — fetching from simple-agent-sandbox..."
-  curl -fsSL https://raw.githubusercontent.com/AlexAndrewsAI/simple-agent-sandbox/refs/heads/main/persist/.bashrc -o persist/.bashrc
+  BASHRC_URL="https://raw.githubusercontent.com/"
+  BASHRC_URL+="AlexAndrewsAI/simple-agent-sandbox/"
+  BASHRC_URL+="refs/heads/main/persist/.bashrc"
+  curl -fsSL "$BASHRC_URL" -o persist/.bashrc
 fi
 
 # --- Optional persist sync ----------------------------------------------------
@@ -56,7 +103,8 @@ if [ -f config.yml ] && yq -r '.location' config.yml &>/dev/null; then
         rsync -av "${exclude_args[@]}" "$location/persist/" persist/
         echo "Sync complete."
       else
-        echo "WARNING: rsync not installed — skipping persist sync from $location" >&2
+        echo "WARNING: rsync not installed" >&2
+        echo "Skipping persist sync from $location" >&2
       fi
     else
       echo "WARNING: Source directory $location/persist/ does not exist" >&2
@@ -65,4 +113,30 @@ if [ -f config.yml ] && yq -r '.location' config.yml &>/dev/null; then
 fi
 
 # --- Build --------------------------------------------------------------------
-docker compose --progress=plain build "$@"
+build_args=(--progress=plain)
+if [ "$no_cache" = true ]; then
+  build_args+=(--no-cache)
+fi
+
+docker compose build "${build_args[@]}"
+
+# --- Push --------------------------------------------------------------------
+if [ "$push" = true ]; then
+  echo "Pushing image to Docker Hub..."
+  docker compose push
+
+  # Create and push dated tag
+  image_name=$(yq -r '.services.sandbox.image' docker-compose.yml)
+  if [ "$image_name" != "null" ] && [ -n "$image_name" ]; then
+    dated_tag=$(date +%Y-%m-%d)
+    dated_image="${image_name%:*}:${dated_tag}"
+
+    echo "Tagging image as $dated_image..."
+    docker tag "$image_name" "$dated_image"
+
+    echo "Pushing $dated_image..."
+    docker push "$dated_image"
+  else
+    echo "WARNING: Could not determine image name from docker-compose.yml" >&2
+  fi
+fi

@@ -1,4 +1,4 @@
-co# Example compose configuration — copy to docker-compose.yml and customise.
+# Example compose configuration — copy to docker-compose.yml and customise.
 services:
   sandbox:
     # Image to build / pull.  Override with a local tag during development.
@@ -14,6 +14,8 @@ services:
     ports:
       # VNC desktop access (connect any VNC client to localhost:5901)
       - "5901:5901"
+      # SSH server for secure tunneling and remote access
+      - "2222:22"
 
     volumes:
       # ┌─────────────────────────────────────────────────────────┐

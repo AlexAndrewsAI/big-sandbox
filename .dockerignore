@@ -2,10 +2,6 @@
 .git
 .gitignore
 
-# Real config (may contain secrets / local paths)
-config.yml
-docker-compose.yml
-
 # Persistent state (mounted at runtime, never belong in the image)
 persist/
 

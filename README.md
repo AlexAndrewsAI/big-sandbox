@@ -23,6 +23,8 @@ This repository is designed to be used in conjunction with the other repositorie
 | Config Format | YAML |
 | Shell | Bash |
 | Package Manager | npm, curl-based installers |
+| VNC Server | x11vnc (with SSH tunneling support) |
+| SSH Server | openssh-server (for secure VNC tunneling) |
 
 ## Project Structure
 
@@ -109,16 +111,80 @@ The password is stored in `./persist/.vnc/passwd` and persists across restarts.
 
 ### Connect to the Desktop
 
-Port `5901` is exposed in `docker-compose.yml`. Start the container:
+🔒 **Automatic SSH Tunneling:** The `run.sh` script automatically sets up an encrypted SSH tunnel for secure VNC access. Note that VNC clients may still show security warnings due to the inherent nature of the VNC protocol (it lacks built-in encryption), but your connection is encrypted at the network layer via SSH. You can safely dismiss these warnings when using SSH tunneling.
+
+#### Automated Secure Connection (Recommended)
+
+Simply start the container with the run script:
 
 ```bash
 scripts/run.sh
-# Wait ~3 seconds for VNC to initialize
-# Connect to localhost:5901 with your VNC client
 ```
 
-> **Why `--service-ports`?** `docker compose run` does not publish ports by default.
-> `run.sh` adds `--service-ports` so port 5901 is reachable from your host.
+The script will:
+1. Automatically establish an SSH tunnel in the background
+2. Wait for the container to be ready (with retries)
+3. Display connection status messages
+4. Enable encrypted VNC access on `localhost:5902` (port 5902 used to avoid conflict with Docker's port mapping)
+
+**Connect your VNC client to `localhost:5902`** - the connection is encrypted via SSH at the network layer.
+
+#### Manual SSH Tunnel (If Needed)
+
+If the automatic tunnel fails or you prefer manual setup:
+
+```bash
+sshpass -p 'sandbox' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -L 5902:localhost:5901 -p 2222 sandbox@localhost
+```
+
+Then connect your VNC client to `localhost:5902`.
+
+> **Why port 5902?** The SSH tunnel uses port 5902 locally to avoid conflict with Docker's port mapping (which publishes port 5901). This ensures your VNC traffic goes through the encrypted SSH tunnel rather than directly to the container.
+
+> **Note:** The default password is `sandbox`. You can change it inside the container with `passwd`. For full host key verification (recommended for production), remove the `-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null` options.
+
+#### Direct Connection (Unencrypted - Not Recommended)
+
+To disable automatic SSH tunneling and use direct (unencrypted) VNC access:
+
+```bash
+scripts/run.sh --no-ssh-tunnel
+```
+
+> **⚠️ Direct connections are unencrypted** and will show security warnings in VNC clients like TigerVNC. Even with SSH tunneling, some clients may still show warnings due to the VNC protocol's inherent lack of encryption.
+
+**Benefits of SSH tunneling:**
+- ✅ Encrypts all VNC traffic at the transport layer
+- ✅ Uses standard SSH authentication
+- ✅ Works with any VNC client
+- ✅ More secure than direct VNC access
+- ✅ Prevents network eavesdropping
+
+> **Important Note about VNC Security Warnings:** The VNC protocol itself is inherently unencrypted, so clients like TigerVNC may still show security warnings even when using SSH tunneling. This is expected behavior - SSH tunneling encrypts the network connection (transport layer), but the VNC protocol doesn't have built-in encryption. Your connection is still more secure than direct VNC access, as the network traffic is encrypted via SSH. You can safely dismiss the warning when using SSH tunneling.
+
+> **Port 5902 vs 5901:** The SSH tunnel forwards to local port 5902 to avoid conflict with Docker's port mapping (which also publishes port 5901). Connecting to localhost:5902 ensures your traffic goes through the encrypted SSH tunnel, while localhost:5901 would be a direct (unencrypted) connection.
+
+**Default credentials:**
+- SSH username: `sandbox`
+- SSH password: `sandbox` (can be changed inside the container with `passwd`)
+
+### SSH Key Authentication (Optional Enhancement)
+
+For passwordless SSH tunneling, you can set up SSH key authentication:
+
+1. **Generate an SSH key pair** (if you don't have one):
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/sandbox_key
+   ```
+
+2. **Copy your public key to the container:**
+   ```bash
+   sshpass -p 'sandbox' ssh-copy-id -i ~/.ssh/sandbox_key.pub -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 sandbox@localhost
+   ```
+
+3. **Update the run.sh script** to use your SSH key by modifying the SSH command to include `-i ~/.ssh/sandbox_key`.
+
+> **Note:** The automated tunnel uses password authentication by default and forwards to local port 5902. For key-based auth, you'll need to modify the script or use manual tunneling.
 
 ### Troubleshooting
 
@@ -127,6 +193,11 @@ scripts/run.sh
 | `Connection refused` on port 5901 | Make sure you used `scripts/run.sh` (which adds `--service-ports`). VNC also needs ~3s to initialize. Check `docker compose logs sandbox`. |
 | Prompted for VNC password every time | Run `x11vnc -storepasswd /persist/.vnc/passwd` inside the container to save a persistent password. |
 | Blank screen / no desktop | XFCE starts automatically. If the screen is empty, launch an app manually: `DISPLAY=:1 chromium &` from the container shell. |
+| SSH connection refused | Ensure port `2222` is exposed in `docker-compose.yml`. Check if SSH is running: `docker compose exec sandbox ps aux | grep sshd`. SSH server is installed in the Dockerfile by default. For manual testing, use: `sshpass -p 'sandbox' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 sandbox@localhost` |
+| SSH host key prompt | The automated tunnel uses `-o StrictHostKeyChecking=no` to avoid interactive prompts. If you see host key verification prompts, use the manual SSH command with the same options or add the container's host key to your known_hosts. |
+| Automatic SSH tunnel fails | The script retries 10 times with 2-second delays. If it still fails, the container might not be starting properly. Check `docker compose logs sandbox` and ensure SSH server is running inside the container. The script uses `sshpass` with the default password `sandbox` and `-o StrictHostKeyChecking=no` to avoid interactive prompts. |
+| VNC security warning persists | This is expected behavior. VNC clients like TigerVNC may show security warnings even with SSH tunneling because the VNC protocol itself is inherently unencrypted. SSH tunneling encrypts the network connection (transport layer), but the VNC protocol lacks built-in encryption. Your connection is still more secure than direct VNC access, and you can safely dismiss the warning when using SSH tunneling. |
+| rsyslog imklog warnings | These are expected in containers and can be ignored. The warning "cannot open kernel log (/proc/kmsg)" is normal because containers don't have access to kernel logs. |
 
 ## Environment Variables
 

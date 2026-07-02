@@ -33,6 +33,9 @@ apt:
   - python3-pip
   - python3-numpy
 
+  # Validation
+  - shellcheck
+
   # File sync & backup
   - syncthing       # Continuous file synchronisation
   - gocryptfs       # Encrypted overlay filesystem

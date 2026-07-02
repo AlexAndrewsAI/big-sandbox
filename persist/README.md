@@ -1,0 +1,2 @@
+- `.bashrc` is generated at build time in the `persist` directory
+- use `bash-extra` file to add your own additions

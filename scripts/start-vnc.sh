@@ -1,5 +1,6 @@
 #!/bin/bash
-# start-vnc.sh — Launch a full VNC desktop session inside the sandbox container.
+# start-vnc.sh — Launch a full VNC desktop session inside the
+# sandbox container.
 #
 # Cleanup: all backgrounded desktop processes are tracked and killed on EXIT
 # so they don't leak if the script exits early or the container stops.
@@ -19,6 +20,7 @@
 # Environment variables set here propagate to the XFCE session and any
 # child processes (e.g. terminals, browsers) the agent launches.
 
+set -euo pipefail
 PASSWORD_FILE="/persist/.vnc/passwd"
 
 # --- VNC password setup -----------------------------------------------------
@@ -55,7 +57,15 @@ sudo chmod 644 "$XAUTHORITY_FILE"
 # This prevents orphaned Xvfb/xfce4-session/x11vnc if the script exits
 # early (e.g. error signal) or the Docker container stops.
 CHILD_PIDS=()
-trap 'for pid in "${CHILD_PIDS[@]}"; do kill "$pid" 2>/dev/null; done; wait' EXIT
+
+cleanup_processes() {
+  set +e
+  for pid in "${CHILD_PIDS[@]}"; do
+    kill "$pid" 2>/dev/null || true
+  done
+  wait
+}
+trap cleanup_processes EXIT
 
 # --- Virtual framebuffer (Xvfb) ---------------------------------------------
 # Needs root to create the /tmp/.X11-unix socket.  Resolution is 1280x720
@@ -67,7 +77,10 @@ sleep 1
 # --- User environment --------------------------------------------------------
 # These variables ensure GUI apps write their config/cache/data under
 # /persist so they survive container restarts.
-export PATH=/home/sandbox/.local/bin:/persist/.local/bin:/usr/local/bin:/usr/bin:/bin:/home/sandbox/node_modules/cline/bin
+LOCAL_PATHS="/home/sandbox/.local/bin:/persist/.local/bin"
+LOCAL_PATHS+=":/usr/local/bin:/usr/bin:/bin"
+export PATH="$LOCAL_PATHS"
+export PATH+=:/home/sandbox/node_modules/cline/bin
 export HOME=/persist
 export XDG_CONFIG_HOME=/persist/.config
 export XDG_DATA_HOME=/persist/.local/share
@@ -75,7 +88,9 @@ export XDG_CACHE_HOME=/persist/.cache
 
 # --- D-Bus session bus ------------------------------------------------------
 # Required by many XFCE components (volume, power, notifications, etc.).
+set +e  # dbus-launch may fail
 eval "$(dbus-launch --sh-syntax)"
+set -e
 if command -v dbus-update-activation-environment &> /dev/null; then
   dbus-update-activation-environment --systemd DISPLAY 2>/dev/null || true
 fi
